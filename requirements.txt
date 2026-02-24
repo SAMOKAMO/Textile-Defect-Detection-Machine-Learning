@@ -1,0 +1,15 @@
+# Python 3.12 ile test edildi
+# Apple Silicon (M1/M2/M3) icin:
+#   pip install tensorflow-macos tensorflow-metal
+# Intel Mac / Linux / Windows icin:
+#   pip install tensorflow
+
+numpy==1.26.4
+opencv-python==4.9.0.80
+scikit-learn==1.8.0
+pandas==3.0.1
+matplotlib==3.10.8
+
+# Platform'a gore birini sec:
+# tensorflow-macos==2.16.2   # Apple Silicon Mac
+# tensorflow==2.16.2          # Intel Mac / Linux / Windows

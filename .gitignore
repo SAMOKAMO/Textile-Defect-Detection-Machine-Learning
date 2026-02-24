@@ -1,0 +1,27 @@
+# Sanal ortam
+tez_env/
+venv/
+env/
+.venv/
+
+# macOS
+.DS_Store
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Veri seti (buyuk dosyalar, repoya girmiyor)
+data/
+
+# Egitim ciktilari
+egitim_gecmisi.csv
+egitim_grafikleri.png
+
+# IDE
+.vscode/
+.idea/
