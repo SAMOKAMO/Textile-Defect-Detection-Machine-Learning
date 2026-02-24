@@ -1,0 +1,166 @@
+Gerçekçi test için → Düz, beyaz veya düz renkli dokuma kumaş (gömlek, bez, pamuklu düz yüzey)
+  tutun. Model onu tanımak için eğitildi.
+
+  Tişört için → Hâlâ yanlış sonuç verirse bu model zayıflığı değil, eğitim verisiyle test
+  verisinin farklı olmasından kaynaklanan normal bir durum. Tez savunmasında bunu "domain shift"
+   olarak açıklarsanız güçlü bir gözlem olur.
+************************************************************************
+   - import pandas as pd eklendi
+  - CSV_YOLU değişkeni eklendi (BASE_DIR üzerinden diğer scriptlerle aynı pattern)
+  - Hardcoded liste yerine CSV'den sorted() ile sınıflar okunuyor — tıpkı predict.py,
+  test_random.py, test_mix.py'da olduğu gibi
+
+  Artık CSV'deki sınıflar değişirse live_demo.py otomatik olarak güncel kalacak.
+  **********************************************************************
+  Yapılan Değişiklikler
+
+  Yeni dosya: src/config.py
+  - Tüm magic number'lar ve yollar tek yerde toplandı
+  - EPOCH_ASAMA1, LR_ASAMA1, LR_ASAMA2, ESIK_CANLI gibi ayrı isimler verildi
+
+  Tüm scriptlerde (predict.py, test_random.py, test_mix.py, live_demo.py, train.py)
+
+  ┌────────────────────┬───────────────────────────┬────────────────────────────────────────┐
+  │     Değişiklik     │           Önce            │                 Sonra                  │
+  ├────────────────────┼───────────────────────────┼────────────────────────────────────────┤
+  │ Yol doğrulama      │ Hata mesajı anlaşılmaz    │ FileNotFoundError + ne yapılması       │
+  │                    │                           │ gerektiği                              │
+  ├────────────────────┼───────────────────────────┼────────────────────────────────────────┤
+  │ Exception handling │ except: (tüm hataları     │ except Exception as e: + hata detayı   │
+  │                    │ yutar)                    │                                        │
+  ├────────────────────┼───────────────────────────┼────────────────────────────────────────┤
+  │ Tekrar eden        │ Her dosyada ayrı tanımlı  │ config.py'dan import                   │
+  │ sabitler           │                           │                                        │
+  └────────────────────┴───────────────────────────┴────────────────────────────────────────┘
+
+  train.py özelinde
+  - 1e-3 → LR_ASAMA1, 1e-4 → LR_ASAMA2
+  - epochs=10 → epochs=EPOCH_ASAMA1
+  - EPOCH - 10 → EPOCH - EPOCH_ASAMA1
+  - initial_epoch=10 → initial_epoch=EPOCH_ASAMA1
+  - mixup_prob=0.3 → mixup_prob=MIXUP_PROB
+  *******************************************************************
+  1. Şu an çalışıyor mu?
+
+  Kod olarak: Evet, syntax ve mantık doğru. Config import'u zaten test ettik.
+
+  Fiilen: Hayır, hemen çalıştırılamaz çünkü:
+
+  data/MultiLabel_Dataset/veri_etiketleri.csv  ← mevcut değil
+  data/MultiLabel_Dataset/images/              ← mevcut değil
+
+  Çalıştırma sırası şu olmalı:
+  1. prepare_dataset.py   → CSV ve görselleri oluşturur
+  2. train.py             → modeli eğitir  (veya mevcut best_model.keras kullanılır)
+  3. predict.py / test_random.py / test_mix.py / live_demo.py
+
+  Model dosyası (models/best_model.keras) Git LFS'de var, o tamam.
+
+  ---
+  2. ML açısından proje nasıl?
+
+  Güçlü yönler
+
+  ResNet50 + Transfer Learning — doğru seçim. Tekstil verisi genellikle küçük olur, sıfırdan
+  eğitmek yerine ImageNet ağırlıklarını kullanmak ciddi fark yaratır.
+
+  İki aşamalı eğitim — "freeze → fine-tune" pattern'ı literature'daki best practice'tir.
+
+  MixUp — 2018'de önerilen, hâlâ güçlü bir regularizasyon tekniği. Multilabel'da özellikle işe
+  yarar.
+
+  Sigmoid + Binary Cross-Entropy — multilabel için doğru matematiksel seçim (softmax/categorical
+   olsaydı yanlış olurdu).
+
+  ---
+  Endişe verici noktalar
+
+  Vertical büyük harf, diğerleri küçük — bu tutarsızlık ciddi bir hata kaynağı:
+  ['Vertical', 'defect_free', 'hole', 'horizontal', 'lines', 'stain']
+  sorted() büyük harfi küçükten önce sıralar. Eğitim sırasında sınıf sırası tutarlıysa sorun
+  olmaz, ama dikkat edilmeli.
+
+  512×512 input — ResNet50, 224×224 için tasarlandı. 512 kullanmak computation'ı ~5x artırır,
+  ama doğruluğa aynı oranda katkısı olmayabilir. Tekstil dokusundaki ince hatalar için mantıklı
+  olabilir, ama test edilmeli.
+
+  Sentetik veri kalitesi — prepare_dataset.py 300 adet "mix" görsel üretiyor. Gerçek dünyada bir
+   kumaş hem delik hem leke içerebilir, ama iki ayrı fotoğrafı blend ederek oluşturulan sentetik
+   görsel bunu tam yansıtmayabilir. Model bu sahte verileri ezberliyor olabilir.
+
+  Binary accuracy yeterli değil — eğitimde kullanılan metrik:
+  binary_accuracy, precision, recall  ← global metrikler
+  Ama asıl soru: hangi sınıf ne kadar doğru tahmin ediliyor? defect_free çok fazla örnekse model
+   "her şey temiz" dese bile yüksek accuracy alabilir.
+
+  ---
+  3. İyi çalıştığını nasıl anlarsın?
+
+  Minimum beklentiler:
+
+  ┌───────────────┬──────┬──────────────────┬──────┐
+  │    Metrik     │ İyi  │ Kabul edilebilir │ Kötü │
+  ├───────────────┼──────┼──────────────────┼──────┤
+  │ Test Accuracy │ >90% │ 80-90%           │ <80% │
+  ├───────────────┼──────┼──────────────────┼──────┤
+  │ Precision     │ >85% │ 75-85%           │ <75% │
+  ├───────────────┼──────┼──────────────────┼──────┤
+  │ Recall        │ >80% │ 70-80%           │ <70% │
+  └───────────────┴──────┴──────────────────┴──────┘
+
+  Ama bunlar yeterli değil. Şunlara bakman gerekir:
+
+  1. Her sınıf için ayrı F1 skoru
+     → "hole" için F1 nedir? "stain" için?
+
+  2. Train loss vs Val loss grafiği
+     → val_loss train_loss'tan çok yüksekse overfitting
+
+  3. Gerçek test: Eğitimde hiç görmediğin gerçek kumaş fotoğrafları
+     → Sentetik test seti performansı gerçeği yansıtmayabilir
+
+  Pratikte:
+  python src/test_random.py    # birkaç kez çalıştır, sonuçlar mantıklı mı?
+  python src/predict.py        # bilinen bir hatalı kumaşı ver, doğru tespit ediyor mu?
+
+  ---
+  Genel değerlendirme: Tez projesi için solid bir temel. Mimari seçimler savunulabilir. Asıl
+  soru veri kalitesi ve miktarı — ki bunu koddan göremiyoruz. Gerçek performansı anlamak için
+  egitim_gecmisi.csv dosyasına ve per-class metriklerine bakmak gerekir.
+***************************************************************************
+İşte modelinin içeriği:
+
+  ---
+  Bu model ne biliyor?
+
+  Giriş  → 512×512 piksel RGB kumaş fotoğrafı
+  Çıkış  → 6 sayı (her biri 0-1 arası olasılık)
+
+           [0.92, 0.05, 0.78, 0.03, 0.01, 0.11]
+             ↑                  ↑
+          hole: %92          stain: %78
+
+  Toplam parametre: 24,639,878  (~24.6 milyon sayı)
+                    └─ bunların hepsi eğitimde ayarlandı
+
+  Katman yapısı
+
+  512×512×3 görüntü
+        ↓
+  ResNet50 (23M parametre)      ← ImageNet'ten transfer learning
+        ↓
+  16×16×2048 özellik haritası   ← "bu kumaşta ne görüyorum"
+        ↓
+  GlobalAveragePooling          ← boyut küçültme
+        ↓
+  Dense(512, relu)              ← öğrenilmiş kombinasyonlar
+        ↓
+  Dropout(0.5)                  ← ezberlemeyi önleme
+        ↓
+  Dense(6, sigmoid)             ← 6 sınıf olasılığı
+
+  ---
+  Kısaca: Bu dosya olmadan proje hiçbir şey yapamaz. Ham veri olmadan bu dosyayı yeniden
+  üretemezsin. Eğer ham verini kaybettiysen bu dosya çok değerli — onu koruman lazım.
+
+  Ham verin var mı?
