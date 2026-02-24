@@ -1,18 +1,32 @@
 import cv2
+import sys
 import numpy as np
+import pandas as pd
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent))
+from config import IMG_BOYUT, ESIK_CANLI, MODEL_YOLU, CSV_YOLU
 from tensorflow.keras.models import load_model
 from tensorflow.keras.applications.resnet50 import preprocess_input
 
-BASE_DIR = Path(__file__).parent.parent
-
 # --- 1. AYARLAR VE MODEL YÜKLEME ---
-MODEL_YOLU = str(BASE_DIR / 'models' / 'best_model.keras')
-IMG_BOYUT = (512, 512)
-ESIK_DEGERI = 0.60  # Yanlis pozitif azaltmak icin yukselttik
+ESIK_DEGERI = ESIK_CANLI  # Yanlış pozitifi azaltmak için yüksek eşik
 
-# Modelinin sınıfları (Tam harf sırasına göre)
-SINIFLAR = ['Vertical', 'defect_free', 'hole', 'horizontal', 'lines', 'stain']
+# -------------------- YOL DOĞRULAMA --------------------
+if not Path(CSV_YOLU).exists():
+    raise FileNotFoundError(
+        f"CSV dosyası bulunamadı: {CSV_YOLU}\n"
+        "'prepare_dataset.py' scriptini önce çalıştırın."
+    )
+if not Path(MODEL_YOLU).exists():
+    raise FileNotFoundError(f"Model dosyası bulunamadı: {MODEL_YOLU}")
+
+# Sınıfları CSV'den oku (eğitimle tutarlı olması için)
+df = pd.read_csv(CSV_YOLU)
+tum_etiketler = set()
+for etiket_str in df['etiketler'].dropna():
+    for etiket in str(etiket_str).split():
+        tum_etiketler.add(etiket.strip())
+SINIFLAR = sorted(tum_etiketler)
 
 print("Model yükleniyor, lütfen bekleyin...")
 model = load_model(MODEL_YOLU)

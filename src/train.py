@@ -6,11 +6,16 @@ bir kumaşta birden fazla hatayı aynı anda tespit edebilen model eğitir.
 """
 
 import os
+import sys
 import numpy as np
 import pandas as pd
 import cv2
 import tensorflow as tf
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent))
+from config import (IMG_BOYUT, BATCH_SIZE, EPOCH, EPOCH_ASAMA1,
+                    LR_ASAMA1, LR_ASAMA2, TEST_ORANI, RANDOM_SEED,
+                    MIXUP_PROB, CSV_YOLU, RESIM_KLASORU, MODEL_YOLU)
 from tensorflow.keras import layers, models, optimizers
 from tensorflow.keras.applications import ResNet50
 from tensorflow.keras.applications.resnet50 import preprocess_input
@@ -18,27 +23,34 @@ from tensorflow.keras.utils import Sequence
 from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, EarlyStopping, CSVLogger
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MultiLabelBinarizer
+from sklearn.metrics import classification_report
+from collections import Counter
 import matplotlib.pyplot as plt
 import random
 
-BASE_DIR = Path(__file__).parent.parent
-
 # ======================== AYARLAR ========================
-VERI_SETI_KLASORU = str(BASE_DIR / 'data' / 'MultiLabel_Dataset')
-CSV_DOSYASI = os.path.join(VERI_SETI_KLASORU, 'veri_etiketleri.csv')
-RESIM_KLASORU = os.path.join(VERI_SETI_KLASORU, 'images')
-
-IMG_BOYUT = (512, 512)  # Resim boyutu (yükseklik, genişlik)
-BATCH_SIZE = 8  # Batch boyutu (GPU belleğine göre 8-16 arası idealdir)
-EPOCH = 50  # Maksimum epoch sayısı (early stop durduracak)
-LEARNING_RATE = 1e-4  # İnce ayar için learning rate (önce 1e-3, sonra 1e-4)
-TEST_ORANI = 0.15  # Doğrulama için ayrılacak oran (test seti zaten ayrılmıştı, ama biz train'den bir kısmını validasyon olarak kullanacağız)
-RANDOM_SEED = 42  # Tekrarlanabilirlik için
+# (Sabitler config.py'dan import edildi)
 
 # ======================== VERİYİ YÜKLE ========================
 print("📁 Veri seti yükleniyor...")
-df = pd.read_csv(CSV_DOSYASI)
+df = pd.read_csv(CSV_YOLU)
 print(f"Toplam {len(df)} görüntü bulundu.")
+
+# ---- Sınıf Dağılımı Analizi ----
+print("\n📊 Sınıf Dağılımı:")
+tum_etiketler_flat = []
+for etiket_str in df['etiketler'].dropna():
+    for e in str(etiket_str).split():
+        tum_etiketler_flat.append(e.strip())
+sinif_sayilari = Counter(tum_etiketler_flat)
+for sinif, sayi in sorted(sinif_sayilari.items()):
+    print(f"  {sinif:15s}: {sayi} görüntü")
+max_sayi = max(sinif_sayilari.values())
+min_sayi = min(sinif_sayilari.values())
+if max_sayi / min_sayi > 3:
+    print(f"⚠️  Uyarı: Sınıf dengesizliği var! "
+          f"En fazla {max_sayi}, en az {min_sayi} örnek. "
+          f"(Oran: {max_sayi/min_sayi:.1f}x)")
 
 # CSV'de 'set' sütunu var mı kontrol et (biz oluşturduk)
 if 'set' in df.columns:
@@ -223,7 +235,7 @@ train_gen = MultilabelGenerator(
     mlb=mlb,
     sinif_isimleri=sinif_isimleri,
     augment=True,
-    mixup_prob=0.3  # %30 olasılıkla MixUp uygula (modelin genellemesini artırır)
+    mixup_prob=MIXUP_PROB
 )
 
 val_gen = MultilabelGenerator(
@@ -272,7 +284,7 @@ model = models.Sequential([
 
 model.compile(
     loss='binary_crossentropy',
-    optimizer=optimizers.Adam(learning_rate=1e-3),
+    optimizer=optimizers.Adam(learning_rate=LR_ASAMA1),
     metrics=['binary_accuracy', tf.keras.metrics.Precision(), tf.keras.metrics.Recall()]
 )
 
@@ -281,7 +293,7 @@ model.summary()
 # ======================== CALLBACK'LER ========================
 # Model kaydetme (en iyi doğrulama binary_accuracy'ine göre)
 checkpoint = ModelCheckpoint(
-    str(BASE_DIR / 'models' / 'best_model.keras'),
+    MODEL_YOLU,
     monitor='val_binary_accuracy',
     mode='max',
     save_best_only=True,
@@ -314,7 +326,7 @@ callbacks = [checkpoint, lr_scheduler, early_stop, csv_logger]
 print("\n🚀 1. Aşama: Sadece üst katmanlar eğitiliyor (base model dondurulmuş)...")
 history1 = model.fit(
     train_gen,
-    epochs=10,  # İlk aşamada 10 epoch yeterli
+    epochs=EPOCH_ASAMA1,
     validation_data=val_gen,
     callbacks=callbacks,
     verbose=1
@@ -328,12 +340,12 @@ base_model.trainable = True
 # Daha düşük learning rate ile yeniden derle
 model.compile(
     loss='binary_crossentropy',
-    optimizer=optimizers.Adam(learning_rate=LEARNING_RATE),
+    optimizer=optimizers.Adam(learning_rate=LR_ASAMA2),
     metrics=['binary_accuracy', tf.keras.metrics.Precision(), tf.keras.metrics.Recall()]
 )
 
 # Toplam epoch sayısı - ilk aşamada 10 yaptık, kalan 40 epoch
-kalan_epoch = EPOCH - 10
+kalan_epoch = EPOCH - EPOCH_ASAMA1
 if kalan_epoch > 0:
     history2 = model.fit(
         train_gen,
@@ -341,7 +353,7 @@ if kalan_epoch > 0:
         validation_data=val_gen,
         callbacks=callbacks,
         verbose=1,
-        initial_epoch=10  # Kaldığı yerden devam et
+        initial_epoch=EPOCH_ASAMA1
     )
 else:
     print("İlk aşama zaten tamamlandı, ikinci aşama atlanıyor.")
@@ -350,14 +362,28 @@ print("\n✅ Eğitim tamamlandı! En iyi model 'models/best_model.keras' olarak 
 
 # ======================== TEST SETİNDE DEĞERLENDİR ========================
 print("\n🧪 Test seti değerlendiriliyor...")
-best_model = tf.keras.models.load_model(str(BASE_DIR / 'models' / 'best_model.keras'))
+best_model = tf.keras.models.load_model(MODEL_YOLU)
 
 test_loss, test_acc, test_precision, test_recall = best_model.evaluate(test_gen)
-print(f"\n📊 Test Sonuçları:")
-print(f"   Kayıp (Loss)      : {test_loss:.4f}")
-print(f"   Doğruluk (Accuracy): {test_acc:.4f}")
+print(f"\n📊 Test Sonuçları (Global):")
+print(f"   Kayıp (Loss)        : {test_loss:.4f}")
+print(f"   Doğruluk (Accuracy) : {test_acc:.4f}")
 print(f"   Kesinlik (Precision): {test_precision:.4f}")
-print(f"   Duyarlılık (Recall): {test_recall:.4f}")
+print(f"   Duyarlılık (Recall) : {test_recall:.4f}")
+
+# ---- Sınıf Bazlı Metrikler ----
+print("\n📋 Sınıf Bazlı Metrikler (F1 / Precision / Recall):")
+y_pred_list, y_true_list = [], []
+for i in range(len(test_gen)):
+    X_batch, y_batch = test_gen[i]
+    preds = best_model.predict(X_batch, verbose=0)
+    y_pred_list.extend(preds)
+    y_true_list.extend(y_batch)
+y_pred_bin = (np.array(y_pred_list) >= 0.5).astype(int)
+y_true_bin = np.array(y_true_list).astype(int)
+print(classification_report(y_true_bin, y_pred_bin,
+                             target_names=sinif_isimleri,
+                             zero_division=0))
 
 # ======================== ÖRNEK TAHMİN ========================
 print("\n🔍 Örnek tahminler gösteriliyor...")

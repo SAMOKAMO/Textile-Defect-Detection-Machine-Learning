@@ -6,29 +6,33 @@ model ile tahmin yapar ve sonucu gösterir.
 """
 
 import os
+import sys
 import numpy as np
 import cv2
 import pandas as pd
 import tensorflow as tf
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent))
+from config import IMG_BOYUT, ESIK, MODEL_YOLU, CSV_YOLU
 from tensorflow.keras.models import load_model
 from tensorflow.keras.applications.resnet50 import preprocess_input
 from sklearn.preprocessing import MultiLabelBinarizer
-
-BASE_DIR = Path(__file__).parent.parent
 
 # -------------------- AYARLAR --------------------
 # ★★★ BURAYA KENDİ FOTOĞRAFININ TAM DOSYA YOLUNU YAZ ★★★
 FOTOGRAF_YOLU = r"DENEME STAIN.jpeg"  # Örnek yol, sen değiştir!
 
-VERI_KLASORU = str(BASE_DIR / 'data' / 'MultiLabel_Dataset')
-MODEL_YOLU = str(BASE_DIR / 'models' / 'best_model.keras')
-IMG_BOYUT = (512, 512)  # Modelin beklediği boyut
-ESIK = 0.5  # Eşik değeri
+# -------------------- YOL DOĞRULAMA --------------------
+if not Path(CSV_YOLU).exists():
+    raise FileNotFoundError(
+        f"CSV dosyası bulunamadı: {CSV_YOLU}\n"
+        "'prepare_dataset.py' scriptini önce çalıştırın."
+    )
+if not Path(MODEL_YOLU).exists():
+    raise FileNotFoundError(f"Model dosyası bulunamadı: {MODEL_YOLU}")
 
 # -------------------- SINIF LİSTESİNİ CSV'DEN YÜKLE --------------------
-csv_path = os.path.join(VERI_KLASORU, 'veri_etiketleri.csv')
-df = pd.read_csv(csv_path)
+df = pd.read_csv(CSV_YOLU)
 
 tum_etiketler = set()
 for etiket_str in df['etiketler'].dropna():
@@ -45,11 +49,9 @@ mlb.fit([tum_siniflar])
 print("🧠 Model yükleniyor...")
 try:
     model = load_model(MODEL_YOLU)
-    print(f"✅ Model {MODEL_YOLU} başarıyla yüklendi.")
-except:
-    MODEL_YOLU = 'multilabel_model_son.keras'
-    model = load_model(MODEL_YOLU)
-    print(f"✅ Model {MODEL_YOLU} başarıyla yüklendi.")
+    print(f"✅ Model başarıyla yüklendi: {MODEL_YOLU}")
+except Exception as e:
+    raise RuntimeError(f"Model yüklenemedi: {MODEL_YOLU}\nHata: {e}")
 
 
 # -------------------- RESİM YÜKLEME FONKSİYONU --------------------

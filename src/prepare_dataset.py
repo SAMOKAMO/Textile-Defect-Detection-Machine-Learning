@@ -1,4 +1,5 @@
 import os
+import sys
 import cv2
 import pandas as pd
 import random
@@ -7,19 +8,20 @@ from pathlib import Path
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from itertools import combinations
+sys.path.insert(0, str(Path(__file__).parent))
+from config import (IMG_BOYUT, VERI_KLASORU, RESIM_KLASORU, CSV_YOLU,
+                    HIBRIT_SAYISI, DATASET_TEST_ORANI)
 
 BASE_DIR = Path(__file__).parent.parent
 
 # --- AYARLAR ---
-HEDEF_BOYUT = (512, 512)           # Tüm resimler bu boyuta getirilecek
-HIBRIT_SAYISI = 300                 # Üretilecek hibrit resim sayısı
-TEST_ORANI = 0.2                    # %20 test, %80 eğitim
+HEDEF_BOYUT        = IMG_BOYUT           # config.py ile tutarlı olması için
+TEST_ORANI         = DATASET_TEST_ORANI  # %20 test, %80 eğitim
 
 # Klasör yolları
-TEMIZ_KLASOR = str(BASE_DIR / 'data' / 'Temiz_Veri_Seti')
-YENI_KLASOR = str(BASE_DIR / 'data' / 'MultiLabel_Dataset')
-YENI_RESIM_KLASORU = os.path.join(YENI_KLASOR, 'images')
-CSV_YOLU = os.path.join(YENI_KLASOR, 'veri_etiketleri.csv')
+TEMIZ_KLASOR       = str(BASE_DIR / 'data' / 'Temiz_Veri_Seti')
+YENI_KLASOR        = VERI_KLASORU
+YENI_RESIM_KLASORU = RESIM_KLASORU
 
 # --- YARDIMCI FONKSİYONLAR (Türkçe karakter desteği) ---
 def turkce_imread(dosya_yolu):
@@ -43,8 +45,8 @@ for klasor in os.listdir(TEMIZ_KLASOR):
     if not os.path.isdir(klasor_yolu):
         continue
 
-    # Sınıf adındaki boşlukları alt çizgiye çevir (defect free → defect_free)
-    sinif_adi = klasor.replace(' ', '_')
+    # Sınıf adını normalize et: boşluk → alt çizgi, büyük harf → küçük harf
+    sinif_adi = klasor.replace(' ', '_').lower()
 
     for dosya in os.listdir(klasor_yolu):
         if not dosya.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
@@ -119,7 +121,7 @@ orijinal_resimleri_kaydet(train_veri, 'train')
 orijinal_resimleri_kaydet(test_veri, 'test')
 
 # --- 5. HİBRİT (KARIŞIK) RESİMLERİ ÜRET (SADECE EĞİTİM SETİNDEKİ ORİJİNALLERLE) ---
-hata_siniflari = ['hole', 'horizontal', 'lines', 'stain', 'Vertical']
+hata_siniflari = ['hole', 'horizontal', 'lines', 'stain', 'vertical']
 
 # İkili kombinasyonları oluştur
 kombinasyonlar = list(combinations(hata_siniflari, 2))
