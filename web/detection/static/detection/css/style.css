@@ -1,0 +1,359 @@
+/* ============================================================
+   Tekstil Hata Tespiti — Koyu Endüstriyel Tema
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg-main:    #0f0f0f;
+  --bg-panel:   #1a1a1a;
+  --bg-card:    #242424;
+  --border:     #333;
+  --yesil:      #00e676;
+  --kirmizi:    #ff1744;
+  --sari:       #ffd600;
+  --mavi:       #2979ff;
+  --yazi:       #e0e0e0;
+  --yazi-dim:   #888;
+  --radius:     10px;
+}
+
+body {
+  background: var(--bg-main);
+  color: var(--yazi);
+  font-family: 'Segoe UI', 'Roboto', Arial, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Header ─────────────────────────────────────────────── */
+header {
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+header h1 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--yazi);
+}
+
+/* Durum banner */
+.durum-banner, #durum-banner {
+  flex: 1;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+  transition: background 0.4s, color 0.4s;
+  min-width: 200px;
+}
+
+.bekliyor   { background: #222;           color: var(--yazi-dim); }
+.saglam     { background: #003320;        color: var(--yesil);    border: 2px solid var(--yesil); }
+.hatali     { background: #330008;        color: var(--kirmizi);  border: 2px solid var(--kirmizi); }
+.belirsiz   { background: #332200;        color: var(--sari);     border: 2px solid var(--sari); }
+
+/* ─── Main layout ─────────────────────────────────────────── */
+main {
+  display: flex;
+  flex: 1;
+  gap: 20px;
+  padding: 20px;
+  flex-wrap: wrap;
+}
+
+/* ─── Kamera bölümü ───────────────────────────────────────── */
+.kamera-bolum {
+  flex: 1;
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.kamera-cerceve {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  background: #000;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 2px solid var(--border);
+  aspect-ratio: 1/1;  /* square — matches the center-crop sent to model */
+}
+
+#video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;  /* browser crops 16:9 visually to square, same as canvas */
+  display: block;
+}
+
+/* Hedef çerçeve (ortada animasyonlu) */
+.hedef-cerceve {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 65%;
+  aspect-ratio: 1;
+  border: 3px solid var(--yesil);
+  border-radius: 4px;
+  transition: border-color 0.3s;
+  pointer-events: none;
+}
+
+.hedef-cerceve.hatali  { border-color: var(--kirmizi); box-shadow: 0 0 16px var(--kirmizi); }
+.hedef-cerceve.saglam  { border-color: var(--yesil);   box-shadow: 0 0 16px var(--yesil); }
+.hedef-cerceve.belirsiz{ border-color: var(--sari);    box-shadow: 0 0 12px var(--sari); }
+
+.kamera-bilgi {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.65);
+  color: #fff;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  padding: 4px 14px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+/* ─── Sonuçlar paneli ─────────────────────────────────────── */
+.sonuclar-panel {
+  width: 300px;
+  min-width: 260px;
+  background: var(--bg-panel);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sonuclar-panel h2 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--yazi-dim);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+
+.sinif-listesi {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.bekleme-mesaji {
+  color: var(--yazi-dim);
+  font-size: 0.88rem;
+  text-align: center;
+  margin-top: 20px;
+}
+
+/* Progress bar kartı */
+.sinif-kart {
+  background: var(--bg-card);
+  border-radius: 6px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  transition: border-color 0.3s;
+}
+
+.sinif-kart.aktif-hata  { border-color: var(--kirmizi); }
+.sinif-kart.aktif-saglam{ border-color: var(--yesil); }
+
+.sinif-bilgi {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 0.88rem;
+}
+
+.sinif-adi   { font-weight: 600; text-transform: capitalize; }
+.sinif-yuzde { color: var(--yazi-dim); font-variant-numeric: tabular-nums; }
+
+.progress-track {
+  background: #333;
+  border-radius: 4px;
+  height: 6px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.35s ease, background 0.35s;
+  background: var(--mavi);
+}
+
+.progress-bar.yuksek-hata  { background: var(--kirmizi); }
+.progress-bar.yuksek-saglam{ background: var(--yesil); }
+.progress-bar.orta         { background: var(--sari); }
+
+/* ─── İstatistik kutuları ─────────────────────────────────── */
+.istatistik {
+  display: flex;
+  gap: 10px;
+}
+
+.istatistik-kutu {
+  flex: 1;
+  background: var(--bg-card);
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+  border: 1px solid var(--border);
+}
+
+.istatistik-etiket {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--yazi-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+.istatistik-deger {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--yazi);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Hata mesajı ─────────────────────────────────────────── */
+.hata-mesaji {
+  background: #330008;
+  color: var(--kirmizi);
+  border: 1px solid var(--kirmizi);
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* ─── Mod sekmeleri ───────────────────────────────────────── */
+.mod-tabs {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  max-width: 520px;
+  margin-bottom: 12px;
+  background: var(--bg-panel);
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.mod-tab {
+  flex: 1;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 5px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  background: transparent;
+  color: var(--yazi-dim);
+}
+
+.mod-tab.aktif {
+  background: var(--bg-card);
+  color: var(--yazi);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+/* ─── Yükleme alanı ───────────────────────────────────────── */
+.yukle-alan {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0a0a;
+  cursor: pointer;
+}
+
+.yukle-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 36px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  text-align: center;
+}
+
+.yukle-label:hover {
+  border-color: var(--mavi);
+  background: rgba(41,121,255,0.06);
+}
+
+.yukle-ikon   { font-size: 2.4rem; }
+.yukle-metin  { font-size: 0.95rem; color: var(--yazi); font-weight: 600; }
+.yukle-format { font-size: 0.75rem; color: var(--yazi-dim); letter-spacing: 0.1em; }
+
+/* ─── Önizleme ────────────────────────────────────────────── */
+.onizleme {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.baska-gorsel {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.75);
+  color: var(--yazi);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 18px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+
+.baska-gorsel:hover {
+  background: rgba(41,121,255,0.35);
+  border-color: var(--mavi);
+}
+
+/* ─── Responsive ──────────────────────────────────────────── */
+@media (max-width: 700px) {
+  main { flex-direction: column; padding: 12px; }
+  .sonuclar-panel { width: 100%; }
+  .kamera-bolum { min-width: unset; }
+}

@@ -12,21 +12,21 @@ from tensorflow.keras.applications.resnet50 import preprocess_input
 ESIK_DEGERI = ESIK_CANLI  # Yanlış pozitifi azaltmak için yüksek eşik
 
 # -------------------- YOL DOĞRULAMA --------------------
-if not Path(CSV_YOLU).exists():
-    raise FileNotFoundError(
-        f"CSV dosyası bulunamadı: {CSV_YOLU}\n"
-        "'prepare_dataset.py' scriptini önce çalıştırın."
-    )
 if not Path(MODEL_YOLU).exists():
     raise FileNotFoundError(f"Model dosyası bulunamadı: {MODEL_YOLU}")
 
-# Sınıfları CSV'den oku (eğitimle tutarlı olması için)
-df = pd.read_csv(CSV_YOLU)
-tum_etiketler = set()
-for etiket_str in df['etiketler'].dropna():
-    for etiket in str(etiket_str).split():
-        tum_etiketler.add(etiket.strip())
-SINIFLAR = sorted(tum_etiketler)
+# Sınıfları CSV'den oku; CSV yoksa eğitimde kullanılan bilinen sınıflarla devam et
+try:
+    df = pd.read_csv(CSV_YOLU)
+    tum_etiketler = set()
+    for etiket_str in df['etiketler'].dropna():
+        for etiket in str(etiket_str).split():
+            tum_etiketler.add(etiket.strip())
+    SINIFLAR = sorted(tum_etiketler)
+    print(f"Sınıflar CSV'den yüklendi: {SINIFLAR}")
+except FileNotFoundError:
+    SINIFLAR = ['defect_free', 'hole', 'horizontal', 'lines', 'stain', 'vertical']
+    print(f"UYARI: CSV bulunamadı. Fallback sınıflar kullanılıyor: {SINIFLAR}")
 
 print("Model yükleniyor, lütfen bekleyin...")
 model = load_model(MODEL_YOLU)

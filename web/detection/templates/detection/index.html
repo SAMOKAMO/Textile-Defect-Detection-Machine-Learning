@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tekstil Hata Tespiti — Canlı Analiz</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'detection/css/style.css' %}">
+</head>
+<body>
+  <header>
+    <h1>Tekstil Hata Tespiti</h1>
+    <div id="durum-banner" class="durum bekliyor">
+      <span id="durum-yazi">Başlatılıyor...</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Sol: Kamera / Yükleme -->
+    <section class="kamera-bolum">
+
+      <!-- Mod sekmeleri -->
+      <div class="mod-tabs">
+        <button class="mod-tab aktif" id="tab-kamera">📷 Canlı Kamera</button>
+        <button class="mod-tab"       id="tab-yukle" >📁 Görsel Yükle</button>
+      </div>
+
+      <!-- Görüntü çerçevesi -->
+      <div class="kamera-cerceve" id="kamera-cerceve">
+        <!-- Kamera modu -->
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="canvas" width="512" height="512" style="display:none;"></canvas>
+        <div class="hedef-cerceve" id="hedef-cerceve"></div>
+        <div class="kamera-bilgi" id="kamera-bilgi">Kumaşı kameraya tutun</div>
+
+        <!-- Yükleme modu — overlay -->
+        <div id="yukle-alan" class="yukle-alan" style="display:none;">
+          <label for="dosya-input" class="yukle-label">
+            <span class="yukle-ikon">📁</span>
+            <span class="yukle-metin">Görsel seçmek için tıklayın</span>
+            <span class="yukle-format">JPG · PNG · BMP</span>
+          </label>
+          <input type="file" id="dosya-input" accept="image/*" style="display:none;">
+        </div>
+
+        <!-- Önizleme -->
+        <img id="onizleme" class="onizleme" style="display:none;" alt="Yüklenen görsel">
+        <button id="baska-gorsel" class="baska-gorsel" style="display:none;">
+          🔄 Başka görsel yükle
+        </button>
+      </div>
+
+    </section>
+
+    <!-- Sağ: Sonuçlar paneli -->
+    <section class="sonuclar-panel">
+      <h2>Analiz Sonuçları</h2>
+      <div id="sinif-listesi" class="sinif-listesi">
+        <p class="bekleme-mesaji">Tahmin bekleniyor...</p>
+      </div>
+      <div class="istatistik">
+        <div class="istatistik-kutu">
+          <span class="istatistik-etiket">Eşik</span>
+          <span class="istatistik-deger" id="esik-goster">0.60</span>
+        </div>
+        <div class="istatistik-kutu">
+          <span class="istatistik-etiket">Model (ms)</span>
+          <span class="istatistik-deger" id="fps-goster">—</span>
+        </div>
+        <div class="istatistik-kutu">
+          <span class="istatistik-etiket">Tahmin #</span>
+          <span class="istatistik-deger" id="tahmin-sayac">0</span>
+        </div>
+        <div class="istatistik-kutu">
+          <span class="istatistik-etiket">Bağlantı</span>
+          <span class="istatistik-deger" id="baglanti-goster">—</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="{% static 'detection/js/camera.js' %}"></script>
+</body>
+</html>

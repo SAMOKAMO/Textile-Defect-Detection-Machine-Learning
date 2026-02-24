@@ -279,13 +279,13 @@ model = models.Sequential([
     layers.GlobalAveragePooling2D(),
     layers.Dense(512, activation='relu'),
     layers.Dropout(0.5),
-    layers.Dense(num_classes, activation='sigmoid')  # Çoklu etiket için sigmoid
+    layers.Dense(num_classes, activation='softmax')  # Tek etiket → sınıflar rekabet eder
 ])
 
 model.compile(
-    loss='binary_crossentropy',
+    loss='categorical_crossentropy',
     optimizer=optimizers.Adam(learning_rate=LR_ASAMA1),
-    metrics=['binary_accuracy', tf.keras.metrics.Precision(), tf.keras.metrics.Recall()]
+    metrics=['accuracy']
 )
 
 model.summary()
@@ -294,7 +294,7 @@ model.summary()
 # Model kaydetme (en iyi doğrulama binary_accuracy'ine göre)
 checkpoint = ModelCheckpoint(
     MODEL_YOLU,
-    monitor='val_binary_accuracy',
+    monitor='val_accuracy',
     mode='max',
     save_best_only=True,
     verbose=1
@@ -339,9 +339,9 @@ base_model.trainable = True
 
 # Daha düşük learning rate ile yeniden derle
 model.compile(
-    loss='binary_crossentropy',
+    loss='categorical_crossentropy',
     optimizer=optimizers.Adam(learning_rate=LR_ASAMA2),
-    metrics=['binary_accuracy', tf.keras.metrics.Precision(), tf.keras.metrics.Recall()]
+    metrics=['accuracy']
 )
 
 # Toplam epoch sayısı - ilk aşamada 10 yaptık, kalan 40 epoch
@@ -364,12 +364,10 @@ print("\n✅ Eğitim tamamlandı! En iyi model 'models/best_model.keras' olarak 
 print("\n🧪 Test seti değerlendiriliyor...")
 best_model = tf.keras.models.load_model(MODEL_YOLU)
 
-test_loss, test_acc, test_precision, test_recall = best_model.evaluate(test_gen)
+test_loss, test_acc = best_model.evaluate(test_gen)
 print(f"\n📊 Test Sonuçları (Global):")
 print(f"   Kayıp (Loss)        : {test_loss:.4f}")
 print(f"   Doğruluk (Accuracy) : {test_acc:.4f}")
-print(f"   Kesinlik (Precision): {test_precision:.4f}")
-print(f"   Duyarlılık (Recall) : {test_recall:.4f}")
 
 # ---- Sınıf Bazlı Metrikler ----
 print("\n📋 Sınıf Bazlı Metrikler (F1 / Precision / Recall):")

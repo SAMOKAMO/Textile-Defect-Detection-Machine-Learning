@@ -1,3 +1,9 @@
+claude acıldıgında ilk  verilecek prompt:
+I have added the CLAUDE.md protocol to the root. Please initialize the tasks/ directory, analyze the current project state, and create our first tasks/todo.md for our current goal.
+**
+
+
+
 Gerçekçi test için → Düz, beyaz veya düz renkli dokuma kumaş (gömlek, bez, pamuklu düz yüzey)
   tutun. Model onu tanımak için eğitildi.
 
@@ -164,3 +170,159 @@ Gerçekçi test için → Düz, beyaz veya düz renkli dokuma kumaş (gömlek, b
   üretemezsin. Eğer ham verini kaybettiysen bu dosya çok değerli — onu koruman lazım.
 
   Ham verin var mı?
+
+
+
+
+
+
+
+
+
+
+
+  *****Plan to implement                                                                            │
+│                                                                                              │
+│ Plan: Django Canlı Kamera Web Uygulaması                                                     │
+│                                                                                              │
+│ Context                                                                                      │
+│                                                                                              │
+│ live_demo.py'daki OpenCV kamera akışını, tarayıcı üzerinden çalışan modern bir               │
+│ Django web uygulamasına dönüştürmek. Kullanıcı tarayıcıda kamerayı açar,                     │
+│ kumaşı kameraya tutar, model anlık tahmin yapar, sonuçlar ekranda görünür.                   │
+│                                                                                              │
+│ ---                                                                                          │
+│ Mimari                                                                                       │
+│                                                                                              │
+│ Tarayıcı                          Django Backend                                             │
+│ ────────────────────────          ─────────────────────────                                  │
+│ getUserMedia → <video>            AppConfig.ready()                                          │
+│      ↓                               └─ model yüklenir (1 kez)                               │
+│ Canvas.toBlob() her 500ms                                                                    │
+│      ↓                            POST /api/predict/                                         │
+│ AJAX POST (multipart)   ───────►  │  PIL ile aç                                              │
+│                                   │  resize(512,512)                                         │
+│ JSON response           ◄───────  │  preprocess_input                                        │
+│      ↓                            │  model.predict()                                         │
+│ Overlay güncellenir               └─ JSON döner                                              │
+│                                                                                              │
+│ ---                                                                                          │
+│ Proje Yapısı                                                                                 │
+│                                                                                              │
+│ web/                              ← yeni dizin (proje köküne)                                │
+│ ├── manage.py                                                                                │
+│ ├── requirements_web.txt          ← django, pillow                                           │
+│ ├── tekstil_config/               ← Django settings                                          │
+│ │   ├── settings.py                                                                          │
+│ │   ├── urls.py                                                                              │
+│ │   └── wsgi.py                                                                              │
+│ └── detection/                    ← ana uygulama                                             │
+│     ├── apps.py                   ← model burada yüklenir                                    │
+│     ├── model_loader.py           ← singleton: model + siniflar                              │
+│     ├── views.py                  ← index + /api/predict/                                    │
+│     ├── urls.py                                                                              │
+│     ├── templates/detection/                                                                 │
+│     │   └── index.html            ← kamera UI                                                │
+│     └── static/detection/                                                                    │
+│         ├── css/style.css         ← koyu tema, modern                                        │
+│         └── js/camera.js          ← getUserMedia + AJAX döngüsü                              │
+│                                                                                              │
+│ ---                                                                                          │
+│ Kritik Dosyalar                                                                              │
+│                                                                                              │
+│ model_loader.py                                                                              │
+│                                                                                              │
+│ model = None                                                                                 │
+│ siniflar = None                                                                              │
+│                                                                                              │
+│ def load():                                                                                  │
+│     global model, siniflar                                                                   │
+│     model = tf.keras.models.load_model(MODEL_YOLU)                                           │
+│     try:                                                                                     │
+│         df = pd.read_csv(CSV_YOLU)                                                           │
+│         # CSV'den sınıf adlarını oku                                                         │
+│         ...                                                                                  │
+│         siniflar = sorted(tum_etiketler)                                                     │
+│     except FileNotFoundError:                                                                │
+│         # Mevcut model 'Vertical' ile eğitildi, fallback                                     │
+│         siniflar = ['Vertical', 'defect_free', 'hole', 'horizontal', 'lines', 'stain']       │
+│                                                                                              │
+│ apps.py                                                                                      │
+│                                                                                              │
+│ class DetectionConfig(AppConfig):                                                            │
+│     def ready(self):                                                                         │
+│         from . import model_loader                                                           │
+│         model_loader.load()                                                                  │
+│                                                                                              │
+│ views.py — predict endpoint                                                                  │
+│                                                                                              │
+│ @csrf_exempt                                                                                 │
+│ def predict_api(request):                                                                    │
+│     image_file = request.FILES['image']                                                      │
+│     img = Image.open(image_file).convert('RGB')                                              │
+│     img = img.resize((512, 512))                                                             │
+│     img_array = preprocess_input(np.array(img).astype(np.float32))                           │
+│     tahminler = model_loader.model.predict(np.expand_dims(img_array, 0), verbose=0)[0]       │
+│     sonuclar = {s: float(p) for s, p in zip(model_loader.siniflar, tahminler)}               │
+│     return JsonResponse({'tahminler': sonuclar, 'esik': 0.6})                                │
+│                                                                                              │
+│ camera.js — AJAX döngüsü                                                                     │
+│                                                                                              │
+│ navigator.mediaDevices.getUserMedia({video: true})                                           │
+│   .then(stream => { video.srcObject = stream })                                              │
+│                                                                                              │
+│ setInterval(() => {                                                                          │
+│     ctx.drawImage(video, 0, 0, 512, 512)                                                     │
+│     canvas.toBlob(blob => {                                                                  │
+│         const fd = new FormData()                                                            │
+│         fd.append('image', blob, 'frame.jpg')                                                │
+│         fetch('/api/predict/', {method:'POST', body:fd,                                      │
+│               headers:{'X-CSRFToken': getCookie('csrftoken')}})                              │
+│           .then(r => r.json()).then(updateUI)                                                │
+│     }, 'image/jpeg', 0.8)                                                                    │
+│ }, 500)                                                                                      │
+│                                                                                              │
+│ UI Tasarımı (index.html + style.css)                                                         │
+│                                                                                              │
+│ - Koyu arka plan (#0f0f0f), endüstriyel monitör hissi                                        │
+│ - Sol: canlı kamera görüntüsü + renkli çerçeve (yeşil/kırmızı/sarı)                          │
+│ - Sağ panel: her sınıf için progress bar + olasılık yüzdesi                                  │
+│ - Üst başlık: büyük durum yazısı ("KUMAŞ SAĞLAM" / "HATA: hole + stain")                     │
+│ - Animasyonlu geçişler                                                                       │
+│ - Mobil uyumlu (flex layout)                                                                 │
+│                                                                                              │
+│ ---                                                                                          │
+│ Adımlar                                                                                      │
+│                                                                                              │
+│ 1. web/ dizini oluştur                                                                       │
+│ 2. requirements_web.txt yaz (django, pillow)                                                 │
+│ 3. Django projesi kur (tekstil_config/)                                                      │
+│ 4. detection/ uygulamasını oluştur                                                           │
+│ 5. model_loader.py yaz (singleton, CSV fallback)                                             │
+│ 6. apps.py → ready() içinde model_loader.load()                                              │
+│ 7. views.py → index + predict_api endpoint                                                   │
+│ 8. urls.py → route'ları bağla                                                                │
+│ 9. index.html → kamera + overlay layout                                                      │
+│ 10. style.css → koyu modern tema                                                             │
+│ 11. camera.js → getUserMedia + AJAX döngüsü                                                  │
+│ 12. Test: python web/manage.py runserver                                                     │
+│                                                                                              │
+│ ---                                                                                          │
+│ Bağımlılıklar                                                                                │
+│                                                                                              │
+│ requirements_web.txt:                                                                        │
+│   django>=4.2                                                                                │
+│   pillow>=10.0                                                                               │
+│                                                                                              │
+│   (tensorflow, numpy, opencv, pandas → zaten tez_env'de var)                                 │
+│                                                                                              │
+│ ---                                                                                          │
+│ Test                                                                                         │
+│                                                                                              │
+│ cd web                                                                                       │
+│ python manage.py runserver                                                                   │
+│ # → http://localhost:8000                                                                    │
+│ # Tarayıcıda kamera izni ver                                                                 │
+│ # Kumaş fotoğrafı tut → sonuç görünmeli                                                      │
+╰────────────────
+************
